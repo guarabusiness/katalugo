@@ -1,0 +1,1801 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <title>Katalugo</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <!-- Font Awesome para ícones -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
+  
+  <style>
+    :root {
+      --primary-color: #4a6bff;
+      --secondary-color: #2c3e50;
+      --light-color: #f8f9fa;
+      --border-color: #e0e0e0;
+      --shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+      --success-color: #28a745;
+      --danger-color: #dc3545;
+      --warning-color: #ffc107;
+      --info-color: #17a2b8;
+      --radius: 8px;
+      --transition: all 0.3s ease;
+      /* Dark mode variables */
+      --bg-color: #f5f7fa;
+      --text-color: #333;
+      --header-bg: white;
+      --sidebar-bg: white;
+      --modal-bg: white;
+      --modal-footer-bg: #f8f9fa;
+      --category-bg: #f0f2f5;
+      --empresa-bg: white;
+    }
+    
+    [data-theme="dark"] {
+      --bg-color: #1a1a1a;
+      --text-color: #e0e0e0;
+      --header-bg: #2c2c2c;
+      --sidebar-bg: #2c2c2c;
+      --modal-bg: #2c2c2c;
+      --modal-footer-bg: #3a3a3a;
+      --border-color: #444;
+      --category-bg: #3a3a3a;
+      --empresa-bg: #3a3a3a;
+      --shadow: 0 2px 15px rgba(0, 0, 0, 0.3);
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.6;
+      color: var(--text-color);
+      background-color: var(--bg-color);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow-x: hidden;
+    }
+    
+    #header {
+      background: var(--header-bg);
+      color: var(--text-color);
+      padding: 0.75rem 1rem;
+      box-shadow: var(--shadow);
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 1000;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    #header h1 {
+      font-size: 1.5rem;
+      margin: 0;
+      font-weight: 700;
+      color: var(--primary-color);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    #header h1 i {
+      color: var(--text-color);
+    }
+    
+    #auth-section {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    
+    #auth-section.admin {
+      color: var(--success-color);
+    }
+    
+    #auth-section button {
+      padding: 0.5rem 0.75rem;
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 0.85rem;
+      transition: var(--transition);
+      touch-action: manipulation;
+    }
+    
+    #login-btn {
+      background: var(--primary-color);
+      color: white;
+    }
+    
+    #login-btn:hover {
+      background: #3a5bef;
+      transform: translateY(-1px);
+    }
+    
+    #logout-btn {
+      background: var(--danger-color);
+      color: white;
+    }
+    
+    #logout-btn:hover {
+      background: #c82333;
+      transform: translateY(-1px);
+    }
+    
+    #dark-mode-toggle {
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      padding: 0.5rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      touch-action: manipulation;
+    }
+    
+    #dark-mode-toggle:hover {
+      background: #3a5bef;
+      transform: translateY(-1px);
+    }
+    
+    #main-container {
+      display: flex;
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      padding-top: 60px; /* Adjusted for fixed header */
+    }
+    
+    #sidebar {
+      width: 100%;
+      max-width: 380px;
+      background: var(--sidebar-bg);
+      padding: 0;
+      overflow-y: auto;
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      transition: var(--transition);
+      z-index: 1001;
+      position: fixed;
+      top: 60px;
+      bottom: 0;
+      left: -100%;
+      box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    }
+    
+    #sidebar.active {
+      left: 0;
+    }
+    
+    #map-container {
+      flex: 1;
+      position: relative;
+      margin-left: 0;
+      transition: var(--transition);
+    }
+    
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+    
+    .sidebar-header {
+      padding: 1rem;
+      background: var(--sidebar-bg);
+      color: var(--text-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    
+    .sidebar-header h2 {
+      font-size: 1.1rem;
+      margin: 0;
+      font-weight: 600;
+    }
+    
+    .sidebar-tools {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--sidebar-bg);
+      position: sticky;
+      top: 60px;
+      z-index: 10;
+    }
+    
+    .search-container {
+      position: relative;
+      margin-bottom: 0.75rem;
+    }
+    
+    #search {
+      width: 100%;
+      padding: 0.75rem 0.75rem 0.75rem 2.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      font-size: 0.9rem;
+      transition: var(--transition);
+      background: var(--sidebar-bg);
+      color: var(--text-color);
+    }
+    
+    #search:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(74, 107, 255, 0.1);
+    }
+    
+    .search-icon {
+      position: absolute;
+      left: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #777;
+    }
+    
+    .categories {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    
+    .category-btn {
+      padding: 0.5rem 0.75rem;
+      background: var(--category-bg);
+      border: none;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: var(--transition);
+      color: var(--text-color);
+      touch-action: manipulation;
+    }
+    
+    .category-btn:hover, .category-btn.active {
+      background: var(--primary-color);
+      color: white;
+    }
+    
+    #empresas-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+    
+    .empresa-item {
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      background: var(--empresa-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: var(--transition);
+      border-left: 4px solid var(--primary-color);
+    }
+    
+    .empresa-item:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .empresa-item h3 {
+      margin: 0 0 0.5rem;
+      color: var(--text-color);
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    
+    .empresa-item p {
+      margin: 0.25rem 0;
+      font-size: 0.85rem;
+      color: #666;
+    }
+    
+    .empresa-item .category {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      background: var(--category-bg);
+      border-radius: 4px;
+      font-size: 0.75rem;
+      color: var(--text-color);
+      margin-top: 0.5rem;
+    }
+    
+    .empresa-item a {
+      color: var(--primary-color);
+      text-decoration: none;
+      font-size: 0.85rem;
+      display: inline-block;
+      margin-top: 0.5rem;
+      font-weight: 500;
+    }
+    
+    .empresa-item a:hover {
+      text-decoration: underline;
+    }
+    
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+      overflow-y: auto;
+    }
+    
+    .modal-content {
+      background: var(--modal-bg);
+      width: 90%;
+      max-width: 400px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+    
+    .modal.show .modal-content {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    
+    .modal-header {
+      padding: 1rem;
+      background: var(--secondary-color);
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .modal-header h2 {
+      font-size: 1.2rem;
+      margin: 0;
+      font-weight: 600;
+    }
+    
+    .close-btn {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1.5rem;
+      cursor: pointer;
+      transition: var(--transition);
+      padding: 0.25rem;
+      touch-action: manipulation;
+    }
+    
+    .close-btn:hover {
+      opacity: 0.8;
+    }
+    
+    .modal-body {
+      padding: 1rem;
+    }
+    
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: var(--text-color);
+      font-size: 0.9rem;
+    }
+    
+    .form-control {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      font-size: 0.9rem;
+      transition: var(--transition);
+      background: var(--modal-bg);
+      color: var(--text-color);
+    }
+    
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(74, 107, 255, 0.1);
+    }
+    
+    .select-control {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      font-size: 0.9rem;
+      background: var(--modal-bg);
+      color: var(--text-color);
+      cursor: pointer;
+    }
+    
+    .select-control:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(74, 107, 255, 0.1);
+    }
+    
+    .modal-footer {
+      padding: 1rem;
+      background: var(--modal-footer-bg);
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      border-top: 1px solid var(--border-color);
+    }
+    
+    .btn {
+      padding: 0.75rem 1rem;
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: var(--transition);
+      font-weight: 500;
+      font-size: 0.9rem;
+      touch-action: manipulation;
+    }
+    
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+    
+    .btn:active {
+      transform: translateY(0);
+    }
+    
+    .btn-primary {
+      background: var(--primary-color);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #3a5bef;
+      box-shadow: 0 2px 10px rgba(74, 107, 255, 0.3);
+    }
+    
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    
+    .btn-secondary:hover {
+      background: #5a6268;
+      box-shadow: 0 2px 10px rgba(108, 117, 125, 0.3);
+    }
+    
+    .btn-danger {
+      background: var(--danger-color);
+      color: white;
+    }
+    
+    .btn-danger:hover {
+      background: #c82333;
+      box-shadow: 0 2px 10px rgba(220, 53, 69, 0.3);
+    }
+    
+    /* Botão flutuante */
+    .floating-btn {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      font-size: 1.25rem;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      transition: var(--transition);
+      touch-action: manipulation;
+    }
+    
+    .floating-btn:hover {
+      transform: translateY(-3px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(74, 107, 255, 0.4);
+    }
+    
+    /* Ícones nos marcadores */
+    .marker-icon {
+      background: white;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+      background: var(--primary-color);
+      color: white;
+      border: 2px solid var(--header-bg);
+    }
+    
+    /* Login modal */
+    #login-modal .modal-content {
+      max-width: 400px;
+    }
+    
+    .login-message {
+      margin-bottom: 1rem;
+      color: #666;
+      font-size: 0.9rem;
+      text-align: center;
+    }
+    
+    [data-theme="dark"] .login-message {
+      color: #aaa;
+    }
+    
+    /* Mensagem quando não há empresas */
+    .empty-message {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: #777;
+    }
+    
+    [data-theme="dark"] .empty-message {
+      color: #aaa;
+    }
+    
+    .empty-message i {
+      font-size: 2rem;
+      margin-bottom: 0.75rem;
+      opacity: 0.5;
+    }
+    
+    .empty-message p {
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+    }
+    
+    /* Loading */
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Animação de fade in */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    .fade-in {
+      animation: fadeIn 0.5s ease-in-out;
+    }
+
+    /* Categories toggle */
+    .toggle-categories {
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 0.5rem 0.75rem;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+      transition: var(--transition);
+      touch-action: manipulation;
+    }
+
+    .toggle-categories:hover {
+      background: #3a5bef;
+    }
+
+    .categories-container {
+      display: none;
+    }
+
+    .categories-container.show {
+      display: block;
+    }
+
+    /* Controles do mapa */
+    .leaflet-control-container .leaflet-top {
+      top: 10px;
+    }
+    
+    .leaflet-control-container .leaflet-right {
+      right: 10px;
+    }
+    
+    .map-control-btn {
+      background: var(--header-bg);
+      border: none;
+      border-radius: 4px;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: all 0.2s ease;
+      touch-action: manipulation;
+    }
+
+    .map-control-btn:hover {
+      background: var(--modal-footer-bg);
+    }
+
+    .map-control-btn i {
+      font-size: 18px;
+      color: var(--text-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Status de funcionamento */
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      margin-left: 0.5rem;
+    }
+
+    .status-open {
+      background-color: var(--success-color);
+      color: white;
+    }
+
+    .status-closed {
+      background-color: var(--danger-color);
+      color: white;
+    }
+
+    /* Botão do WhatsApp */
+    .whatsapp-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #25D366;
+      color: white;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      text-decoration: none;
+      margin-top: 0.5rem;
+      transition: var(--transition);
+    }
+
+    .whatsapp-btn:hover {
+      background-color: #128C7E;
+      color: white;
+      transform: translateY(-1px);
+    }
+
+    .whatsapp-btn i {
+      margin-right: 0.25rem;
+    }
+
+    /* Responsividade */
+    @media (max-width: 992px) {
+      #sidebar {
+        max-width: 320px;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      #sidebar {
+        width: 100%;
+        left: -100%;
+        z-index: 1001;
+      }
+      
+      #sidebar.active {
+        left: 0;
+      }
+      
+      #map-container {
+        margin-left: 0;
+      }
+      
+      #map-container.active {
+        margin-left: 0;
+      }
+      
+      #header {
+        padding: 0.5rem 0.75rem;
+      }
+      
+      #header h1 {
+        font-size: 1.25rem;
+      }
+      
+      #auth-section button {
+        padding: 0.5rem;
+        font-size: 0.8rem;
+      }
+      
+      .toggle-sidebar {
+        width: 36px;
+        height: 36px;
+      }
+      
+      .toggle-sidebar i {
+        font-size: 16px;
+      }
+      
+      .floating-btn {
+        bottom: 1rem;
+        right: 1rem;
+        width: 45px;
+        height: 45px;
+        font-size: 1.1rem;
+      }
+      
+      .modal-content {
+        width: 95%;
+        max-width: 360px;
+      }
+      
+      .modal-header h2 {
+        font-size: 1.1rem;
+      }
+      
+      .form-group label {
+        font-size: 0.85rem;
+      }
+      
+      .form-control, .select-control {
+        font-size: 0.85rem;
+        padding: 0.6rem;
+      }
+      
+      .btn {
+        padding: 0.6rem 0.8rem;
+        font-size: 0.85rem;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      #header h1 {
+        font-size: 1.1rem;
+      }
+      
+      #auth-section {
+        gap: 0.3rem;
+      }
+      
+      #auth-section button {
+        padding: 0.4rem;
+        font-size: 0.75rem;
+      }
+      
+      #dark-mode-toggle {
+        width: 36px;
+        height: 36px;
+        font-size: 0.8rem;
+      }
+      
+      .sidebar-header h2 {
+        font-size: 1rem;
+      }
+      
+      .empresa-item h3 {
+        font-size: 0.9rem;
+      }
+      
+      .empresa-item p {
+        font-size: 0.8rem;
+      }
+      
+      .map-control-btn {
+        width: 35px;
+        height: 35px;
+      }
+      
+      .map-control-btn i {
+        font-size: 16px;
+      }
+    }
+    
+    /* Botão para alternar sidebar */
+    .toggle-sidebar {
+      display: flex;
+      background: var(--header-bg);
+      border: none;
+      border-radius: 4px;
+      width: 40px;
+      height: 40px;
+      z-index: 1000;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      justify-content: center;
+      align-items: center;
+      margin-right: 0.5rem;
+      touch-action: manipulation;
+    }
+    
+    .toggle-sidebar i {
+      font-size: 18px;
+      color: var(--text-color);
+    }
+
+    @media (min-width: 769px) {
+      .toggle-sidebar {
+        display: flex;
+      }
+      
+      #sidebar:not(.active) {
+        left: -380px;
+      }
+      
+      #map-container:not(.active) {
+        margin-left: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <div class="header-left">
+      <button class="toggle-sidebar" id="toggle-sidebar">
+        <i class="fas fa-bars"></i>
+      </button>
+      <h1><i class="fas fa-map-marked-alt"></i> Katalugo</h1>
+    </div>
+    <div id="auth-section">
+      <span id="auth-status"></span>
+      <button id="login-btn"><i class="fas fa-sign-in-alt"></i> Admin</button>
+      <button id="logout-btn" style="display: none;"><i class="fas fa-sign-out-alt"></i> Sair</button>
+      <button id="dark-mode-toggle" title="Alternar modo escuro">
+        <i class="fas fa-moon"></i>
+      </button>
+    </div>
+  </div>
+  
+  <div id="main-container">
+    <div id="sidebar">
+      <div class="sidebar-header">
+        <h2>Lista de Empresas</h2>
+        <span id="empresas-count">0 empresas</span>
+      </div>
+      
+      <div class="sidebar-tools">
+        <div class="search-container">
+          <i class="fas fa-search search-icon"></i>
+          <input type="text" id="search" placeholder="Buscar empresas...">
+        </div>
+        
+        <button class="toggle-categories">
+          <i class="fas fa-tags"></i> Mostrar Categorias
+        </button>
+        
+        <div class="categories-container">
+          <div class="categories">
+            <button class="category-btn active" data-category="all">Todas</button>
+            <button class="category-btn" data-category="restaurante">Restaurantes</button>
+            <button class="category-btn" data-category="padaria">Padarias</button>
+            <button class="category-btn" data-category="oficina-mecanica">Oficinas Mecânicas</button>
+            <button class="category-btn" data-category="oficina-pintura">Oficinas de Pintura</button>
+            <button class="category-btn" data-category="salao">Salões</button>
+            <button class="category-btn" data-category="barbearia">Barbearias</button>
+            <button class="category-btn" data-category="mercado">Mercados</button>
+            <button class="category-btn" data-category="farmacia">Farmácias</button>
+            <button class="category-btn" data-category="lanchonete">Lanchonetes</button>
+            <button class="category-btn" data-category="pizzaria">Pizzarias</button>
+            <button class="category-btn" data-category="hamburgueria">Hamburguerias</button>
+            <button class="category-btn" data-category="bar">Bares</button>
+            <button class="category-btn" data-category="lava-jato">Lava Jatos</button>
+            <button class="category-btn" data-category="distribuidora">Distribuidoras</button>
+          </div>
+        </div>
+      </div>
+      
+      <div id="empresas-list">
+        <div class="empty-message">
+          <i class="fas fa-building"></i>
+          <p>Nenhuma empresa cadastrada</p>
+        </div>
+      </div>
+    </div>
+    
+    <div id="map-container">
+      <div id="map"></div>
+    </div>
+  </div>
+  
+  <!-- Botão flutuante para adicionar empresa (visível apenas para admin) -->
+  <button id="add-empresa-btn" class="floating-btn" style="display: none;">
+    <i class="fas fa-plus"></i>
+  </button>
+  
+  <!-- Modal para adicionar/editar empresa -->
+  <div id="empresa-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-title">Adicionar Nova Empresa</h2>
+        <button class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="empresa-form">
+          <input type="hidden" id="empresa-id">
+          
+          <div class="form-group">
+            <label for="empresa-nome">Nome da Empresa *</label>
+            <input type="text" id="empresa-nome" class="form-control" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="empresa-categoria">Categoria *</label>
+            <select id="empresa-categoria" class="select-control" required>
+              <option value="">Selecione uma categoria</option>
+              <option value="restaurante">Restaurante</option>
+              <option value="padaria">Padaria</option>
+              <option value="oficina-mecanica">Oficina Mecânica</option>
+              <option value="oficina-pintura">Oficina de Pintura</option>
+              <option value="salao">Salão de Beleza</option>
+              <option value="barbearia">Barbearia</option>
+              <option value="mercado">Mercado/Supermercado</option>
+              <option value="farmacia">Farmácia</option>
+              <option value="lanchonete">Lanchonete</option>
+              <option value="pizzaria">Pizzaria</option>
+              <option value="hamburgueria">Hamburgueria</option>
+              <option value="bar">Bar</option>
+              <option value="lava-jato">Lava Jato</option>
+              <option value="distribuidora">Distribuidora</option>
+              <option value="outros">Outros</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="empresa-endereco">Endereço *</label>
+            <input type="text" id="empresa-endereco" class="form-control" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="empresa-coordinates">Coordenadas (lat,lng) *</label>
+            <input type="text" id="empresa-coordinates" class="form-control" 
+                   placeholder="Ex: -23.5505, -46.6333" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="empresa-site">Site</label>
+            <input type="url" id="empresa-site" class="form-control" placeholder="https://">
+          </div>
+          
+          <div class="form-group">
+            <label for="empresa-telefone">Telefone</label>
+            <input type="tel" id="empresa-telefone" class="form-control" placeholder="(00) 00000-0000">
+          </div>
+          
+          <div class="form-group">
+            <label for="empresa-whatsapp">WhatsApp</label>
+            <input type="tel" id="empresa-whatsapp" class="form-control" placeholder="(00) 00000-0000">
+          </div>
+          
+          <div class="form-group">
+            <label for="empresa-horario">Horário de Funcionamento</label>
+            <div style="display: flex; gap: 0.5rem;">
+              <select id="empresa-horario-inicio" class="form-control">
+                <option value="">Abertura</option>
+                <option value="00:00">00:00</option>
+                <option value="01:00">01:00</option>
+                <option value="02:00">02:00</option>
+                <option value="03:00">03:00</option>
+                <option value="04:00">04:00</option>
+                <option value="05:00">05:00</option>
+                <option value="06:00">06:00</option>
+                <option value="07:00">07:00</option>
+                <option value="08:00">08:00</option>
+                <option value="09:00">09:00</option>
+                <option value="10:00">10:00</option>
+                <option value="11:00">11:00</option>
+                <option value="12:00">12:00</option>
+                <option value="13:00">13:00</option>
+                <option value="14:00">14:00</option>
+                <option value="15:00">15:00</option>
+                <option value="16:00">16:00</option>
+                <option value="17:00">17:00</option>
+                <option value="18:00">18:00</option>
+                <option value="19:00">19:00</option>
+                <option value="20:00">20:00</option>
+                <option value="21:00">21:00</option>
+                <option value="22:00">22:00</option>
+                <option value="23:00">23:00</option>
+              </select>
+              <select id="empresa-horario-fim" class="form-control">
+                <option value="">Fechamento</option>
+                <option value="00:00">00:00</option>
+                <option value="01:00">01:00</option>
+                <option value="02:00">02:00</option>
+                <option value="03:00">03:00</option>
+                <option value="04:00">04:00</option>
+                <option value="05:00">05:00</option>
+                <option value="06:00">06:00</option>
+                <option value="07:00">07:00</option>
+                <option value="08:00">08:00</option>
+                <option value="09:00">09:00</option>
+                <option value="10:00">10:00</option>
+                <option value="11:00">11:00</option>
+                <option value="12:00">12:00</option>
+                <option value="13:00">13:00</option>
+                <option value="14:00">14:00</option>
+                <option value="15:00">15:00</option>
+                <option value="16:00">16:00</option>
+                <option value="17:00">17:00</option>
+                <option value="18:00">18:00</option>
+                <option value="19:00">19:00</option>
+                <option value="20:00">20:00</option>
+                <option value="21:00">21:00</option>
+                <option value="22:00">22:00</option>
+                <option value="23:00">23:00</option>
+              </select>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button id="cancel-empresa" class="btn btn-secondary">Cancelar</button>
+        <button id="delete-empresa" class="btn btn-danger" style="display: none;">Excluir</button>
+        <button id="save-empresa" class="btn btn-primary">
+          <span id="save-text">Salvar</span>
+          <span id="save-loading" class="loading" style="display: none;"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal de login -->
+  <div id="login-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Acesso Admin</h2>
+        <button class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="login-form">
+          <div class="login-message">
+            <i class="fas fa-lock" style="font-size: 1.5rem; margin-bottom: 1rem; display: block;"></i>
+            Insira o e-mail e senha de administrador
+          </div>
+          <div class="form-group">
+            <label for="login-email">E-mail *</label>
+            <input type="email" id="login-email" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label for="login-password">Senha *</label>
+            <input type="password" id="login-password" class="form-control" required>
+          </div>
+          <div id="login-error" style="color: var(--danger-color); margin-top: 1rem; display: none;">
+            Credenciais incorretas. Tente novamente.
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button id="cancel-login" class="btn btn-secondary">Cancelar</button>
+        <button id="confirm-login" class="btn btn-primary">
+          <span id="login-text">Entrar</span>
+          <span id="login-loading" class="loading" style="display: none;"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <script>
+    // Aguarda o carregamento completo da página
+    document.addEventListener('DOMContentLoaded', function() {
+      // Configuração do Firebase
+      const firebaseConfig = {
+        apiKey: "AIzaSyAL6wq-AMsYiqHkcs0_fBMAtmr_tiSvfNI",
+        authDomain: "catalogo027.firebaseapp.com",
+        projectId: "catalogo027",
+        storageBucket: "catalogo027.appspot.com",
+        messagingSenderId: "526326345149",
+        appId: "1:526326345149:web:c94cc6bcc1aa81ac41f6d4",
+        measurementId: "G-WVX269270X"
+      };
+      
+      // Inicializa o Firebase
+      const app = firebase.initializeApp(firebaseConfig);
+      const db = firebase.firestore();
+      const auth = firebase.auth();
+      
+      // Elementos do DOM
+      const mapElement = document.getElementById('map');
+      const empresasList = document.getElementById('empresas-list');
+      const searchInput = document.getElementById('search');
+      const empresasCount = document.getElementById('empresas-count');
+      const addEmpresaBtn = document.getElementById('add-empresa-btn');
+      const empresaModal = document.getElementById('empresa-modal');
+      const loginModal = document.getElementById('login-modal');
+      const closeButtons = document.querySelectorAll('.close-btn, #cancel-empresa, #cancel-login');
+      const saveEmpresaBtn = document.getElementById('save-empresa');
+      const deleteEmpresaBtn = document.getElementById('delete-empresa');
+      const empresaForm = document.getElementById('empresa-form');
+      const loginForm = document.getElementById('login-form');
+      const logoutBtn = document.getElementById('logout-btn');
+      const loginBtn = document.getElementById('login-btn');
+      const confirmLoginBtn = document.getElementById('confirm-login');
+      const authStatus = document.getElementById('auth-status');
+      const authSection = document.getElementById('auth-section');
+      const loginEmail = document.getElementById('login-email');
+      const loginPassword = document.getElementById('login-password');
+      const loginError = document.getElementById('login-error');
+      const saveText = document.getElementById('save-text');
+      const saveLoading = document.getElementById('save-loading');
+      const loginText = document.getElementById('login-text');
+      const loginLoading = document.getElementById('login-loading');
+      const categoryButtons = document.querySelectorAll('.category-btn');
+      const toggleCategoriesBtn = document.querySelector('.toggle-categories');
+      const categoriesContainer = document.querySelector('.categories-container');
+      const toggleSidebarBtn = document.getElementById('toggle-sidebar');
+      const sidebar = document.getElementById('sidebar');
+      const mapContainer = document.getElementById('map-container');
+      const darkModeToggle = document.getElementById('dark-mode-toggle');
+      
+      // Variáveis de estado
+      let map;
+      let markers = {};
+      let empresas = [];
+      let editingEmpresaId = null;
+      let isAdmin = false;
+      let unsubscribeEmpresas;
+      let currentCategory = 'all';
+      let currentMapLayer = 'street'; // 'street' ou 'satellite'
+      let streetLayer, satelliteLayer;
+      
+      // Função para alternar o modo escuro
+      function toggleDarkMode() {
+        const isDarkMode = document.body.dataset.theme === 'dark';
+        document.body.dataset.theme = isDarkMode ? 'light' : 'dark';
+        darkModeToggle.innerHTML = `<i class="fas fa-${isDarkMode ? 'moon' : 'sun'}"></i>`;
+        localStorage.setItem('theme', document.body.dataset.theme);
+      }
+      
+      // Carrega o tema salvo ou define o padrão
+      function loadTheme() {
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.body.dataset.theme = savedTheme;
+        darkModeToggle.innerHTML = `<i class="fas fa-${savedTheme === 'dark' ? 'sun' : 'moon'}"></i>`;
+      }
+      
+      // Inicializa o mapa
+      function initMap() {
+        map = L.map(mapElement).setView([-20.667341, -40.499897], 13);
+        
+        // Camadas do mapa
+        streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        });
+        
+        satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+          attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+        });
+        
+        // Adiciona a camada de rua por padrão
+        streetLayer.addTo(map);
+        
+        // Cria controles personalizados
+        const SatelliteControl = L.Control.extend({
+          onAdd: function(map) {
+            const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-satellite');
+            const button = L.DomUtil.create('a', 'map-control-btn', container);
+            button.innerHTML = '<i class="fas fa-satellite"></i>';
+            button.title = 'Visualização de satélite';
+            button.href = '#';
+            
+            L.DomEvent.on(button, 'click', function(e) {
+              L.DomEvent.stopPropagation(e);
+              L.DomEvent.preventDefault(e);
+              map.removeLayer(streetLayer);
+              map.addLayer(satelliteLayer);
+              currentMapLayer = 'satellite';
+              container.style.display = 'none';
+              document.querySelector('.leaflet-control-street').style.display = 'block';
+            });
+            
+            return container;
+          }
+        });
+        
+        const StreetControl = L.Control.extend({
+          onAdd: function(map) {
+            const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-street');
+            const button = L.DomUtil.create('a', 'map-control-btn', container);
+            button.innerHTML = '<i class="fas fa-map"></i>';
+            button.title = 'Visualização de rua';
+            button.href = '#';
+            container.style.display = 'none';
+            
+            L.DomEvent.on(button, 'click', function(e) {
+              L.DomEvent.stopPropagation(e);
+              L.DomEvent.preventDefault(e);
+              map.removeLayer(satelliteLayer);
+              map.addLayer(streetLayer);
+              currentMapLayer = 'street';
+              container.style.display = 'none';
+              document.querySelector('.leaflet-control-satellite').style.display = 'block';
+            });
+            
+            return container;
+          }
+        });
+        
+        // Adiciona os controles ao mapa
+        new SatelliteControl({ position: 'topright' }).addTo(map);
+        new StreetControl({ position: 'topright' }).addTo(map);
+        
+        // Evento de clique no mapa para adicionar empresa (só funciona no modo admin)
+        map.on('click', function(e) {
+          if (isAdmin && empresaModal.style.display === 'flex' && !editingEmpresaId) {
+            document.getElementById('empresa-coordinates').value = `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
+          }
+        });
+      }
+      
+      // Carrega empresas do Firestore
+      function loadEmpresas() {
+        unsubscribeEmpresas = db.collection("empresas")
+          .onSnapshot(snapshot => {
+            empresas = [];
+            snapshot.forEach(doc => {
+              empresas.push({
+                id: doc.id,
+                ...doc.data()
+              });
+            });
+            
+            updateEmpresasCount();
+            filterAndRenderEmpresas();
+          }, error => {
+            console.error("Erro ao carregar empresas:", error);
+          });
+      }
+      
+      // Atualiza o contador de empresas
+      function updateEmpresasCount() {
+        const count = empresas.length;
+        empresasCount.textContent = `${count} ${count === 1 ? 'empresa' : 'empresas'}`;
+      }
+      
+      // Filtra empresas por categoria e termo de busca
+      function filterEmpresas() {
+        const searchTerm = searchInput.value.toLowerCase();
+        
+        return empresas.filter(empresa => {
+          const categoryMatch = currentCategory === 'all' || 
+                               (empresa.categoria && empresa.categoria === currentCategory);
+          
+          const searchMatch = empresa.nome.toLowerCase().includes(searchTerm) || 
+                             (empresa.endereco && empresa.endereco.toLowerCase().includes(searchTerm)) ||
+                             (empresa.categoria && empresa.categoria.toLowerCase().includes(searchTerm));
+          
+          return categoryMatch && searchMatch;
+        });
+      }
+      
+      // Filtra e renderiza empresas
+      function filterAndRenderEmpresas() {
+        const filtered = filterEmpresas();
+        renderEmpresasList(filtered);
+        renderMarkers(filtered);
+      }
+      
+      // Verifica se o estabelecimento está aberto
+      function isEmpresaOpen(empresa) {
+        if (!empresa.horarioInicio || !empresa.horarioFim) return null;
+        
+        const now = new Date();
+        const currentHours = now.getHours();
+        const currentMinutes = now.getMinutes();
+        const currentTime = currentHours * 60 + currentMinutes;
+        
+        const [startHours, startMinutes] = empresa.horarioInicio.split(':').map(Number);
+        const [endHours, endMinutes] = empresa.horarioFim.split(':').map(Number);
+        
+        const startTime = startHours * 60 + startMinutes;
+        const endTime = endHours * 60 + endMinutes;
+        
+        // Se o horário de fechamento for menor que o de abertura, assume que passa pela meia-noite
+        if (endTime <= startTime) {
+          return currentTime >= startTime || currentTime <= endTime;
+        }
+        
+        return currentTime >= startTime && currentTime <= endTime;
+      }
+      
+      // Renderiza a lista de empresas na sidebar
+      function renderEmpresasList(empresasToRender = null) {
+        const empresasToShow = empresasToRender || empresas;
+        
+        if (empresasToShow.length === 0) {
+          empresasList.innerHTML = `
+            <div class="empty-message">
+              <i class="fas fa-building"></i>
+              <p>Nenhuma empresa encontrada</p>
+            </div>
+          `;
+          return;
+        }
+        
+        empresasList.innerHTML = '';
+        
+        empresasToShow.forEach(empresa => {
+          const isOpen = isEmpresaOpen(empresa);
+          const statusBadge = isOpen !== null ? 
+            `<span class="status-badge ${isOpen ? 'status-open' : 'status-closed'}">
+              ${isOpen ? 'ABERTO' : 'FECHADO'}
+            </span>` : '';
+          
+          const whatsappBtn = empresa.whatsapp ? 
+            `<a href="https://wa.me/55${empresa.whatsapp.replace(/\D/g, '')}" target="_blank" class="whatsapp-btn">
+              <i class="fab fa-whatsapp"></i> WhatsApp
+            </a>` : '';
+          
+          const empresaItem = document.createElement('div');
+          empresaItem.className = `empresa-item fade-in`;
+          empresaItem.innerHTML = `
+            <div style="display: flex; align-items: center;">
+              <h3>${empresa.nome}</h3>
+              ${statusBadge}
+            </div>
+            ${empresa.categoria ? `<span class="category">${getCategoryName(empresa.categoria)}</span>` : ''}
+            <p><i class="fas fa-map-marker-alt"></i> ${empresa.endereco}</p>
+            ${empresa.telefone ? `<p><i class="fas fa-phone"></i> ${formatPhone(empresa.telefone)}</p>` : ''}
+            ${empresa.horarioInicio && empresa.horarioFim ? 
+              `<p><i class="fas fa-clock"></i> ${empresa.horarioInicio} - ${empresa.horarioFim}</p>` : ''}
+            ${empresa.site ? `<a href="${empresa.site}" target="_blank"><i class="fas fa-globe"></i> Visitar Site</a>` : ''}
+            ${whatsappBtn}
+          `;
+          
+          empresaItem.addEventListener('click', function() {
+            map.setView([empresa.lat, empresa.lng], 15);
+            markers[empresa.id].openPopup();
+          });
+          
+          if (isAdmin) {
+            empresaItem.addEventListener('dblclick', function() {
+              openEditEmpresaModal(empresa.id);
+            });
+          }
+          
+          empresasList.appendChild(empresaItem);
+        });
+      }
+      
+      // Retorna o nome legível da categoria
+      function getCategoryName(categoryKey) {
+        const categories = {
+          'restaurante': 'Restaurante',
+          'padaria': 'Padaria',
+          'oficina-mecanica': 'Oficina Mecânica',
+          'oficina-pintura': 'Oficina de Pintura',
+          'salao': 'Salão de Beleza',
+          'barbearia': 'Barbearia',
+          'mercado': 'Mercado',
+          'farmacia': 'Farmácia',
+          'lanchonete': 'Lanchonete',
+          'pizzaria': 'Pizzaria',
+          'hamburgueria': 'Hamburgueria',
+          'bar': 'Bar',
+          'lava-jato': 'Lava Jato',
+          'distribuidora': 'Distribuidora',
+          'outros': 'Outros'
+        };
+        return categories[categoryKey] || categoryKey;
+      }
+      
+      // Formata número de telefone
+      function formatPhone(phone) {
+        const cleaned = ('' + phone).replace(/\D/g, '');
+        const match = cleaned.match(/^(\d{2})(\d{4,5})(\d{4})$/);
+        if (match) {
+          return '(' + match[1] + ') ' + match[2] + '-' + match[3];
+        }
+        return phone;
+      }
+      
+      // Renderiza os marcadores no mapa
+      function renderMarkers(empresasToRender = null) {
+        Object.values(markers).forEach(marker => {
+          map.removeLayer(marker);
+        });
+        markers = {};
+        
+        const empresasToShow = empresasToRender || empresas;
+        
+        empresasToShow.forEach(empresa => {
+          const marker = L.marker([empresa.lat, empresa.lng], {
+            title: empresa.nome,
+            icon: L.divIcon({
+              className: 'custom-marker',
+              html: `<div class="marker-icon">${empresa.nome.charAt(0)}</div>`,
+              iconSize: [36, 36],
+              iconAnchor: [18, 18]
+            })
+          }).addTo(map);
+          
+          const isOpen = isEmpresaOpen(empresa);
+          const statusText = isOpen !== null ? 
+            `<p style="margin: 0 0 0.25rem; font-size: 0.85rem;">
+              <strong>Status:</strong> 
+              <span style="color: ${isOpen ? 'var(--success-color)' : 'var(--danger-color)'}; font-weight: 500;">
+                ${isOpen ? 'ABERTO' : 'FECHADO'}
+              </span>
+            </p>` : '';
+          
+          const horarioText = empresa.horarioInicio && empresa.horarioFim ? 
+            `<p style="margin: 0 0 0.25rem; font-size: 0.85rem;">
+              <strong><i class="fas fa-clock"></i> Horário:</strong> ${empresa.horarioInicio} - ${empresa.horarioFim}
+            </p>` : '';
+          
+          const whatsappBtn = empresa.whatsapp ? 
+            `<a href="https://wa.me/55${empresa.whatsapp.replace(/\D/g, '')}" target="_blank" class="whatsapp-btn" style="display: inline-block; margin-top: 0.5rem;">
+              <i class="fab fa-whatsapp"></i> WhatsApp
+            </a>` : '';
+          
+          let popupContent = `
+            <div style="min-width: 200px;">
+              <h3 style="margin: 0 0 0.5rem; font-size: 1.1rem;">${empresa.nome}</h3>
+              ${empresa.categoria ? `<p style="margin: 0 0 0.25rem; font-size: 0.85rem; color: #666;"><strong>Categoria:</strong> ${getCategoryName(empresa.categoria)}</p>` : ''}
+              <p style="margin: 0 0 0.25rem; font-size: 0.85rem;"><strong><i class="fas fa-map-marker-alt"></i> Endereço:</strong> ${empresa.endereco}</p>
+              ${statusText}
+              ${horarioText}
+              ${empresa.telefone ? `<p style="margin: 0 0 0.25rem; font-size: 0.85rem;"><strong><i class="fas fa-phone"></i> Telefone:</strong> ${formatPhone(empresa.telefone)}</p>` : ''}
+              ${empresa.site ? `<a href="${empresa.site}" target="_blank" class="btn btn-primary" style="display: inline-block; margin-top: 0.5rem; padding: 0.25rem 0.5rem; font-size: 0.8rem; text-decoration: none;"><i class="fas fa-globe"></i> Visitar Site</a>` : ''}
+              ${whatsappBtn}
+          `;
+          
+          if (isAdmin) {
+            popupContent += `
+              <div style="margin-top: 0.5rem;">
+                <button onclick="window.app.editEmpresa('${empresa.id}')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; border: none; border-radius: 4px; cursor: pointer;">
+                  <i class="fas fa-edit"></i> Editar
+                </button>
+              </div>
+            `;
+          }
+          
+          popupContent += `</div>`;
+          
+          marker.bindPopup(popupContent);
+          markers[empresa.id] = marker;
+        });
+      }
+      
+      // Processa as coordenadas do input
+      function parseCoordinates(coordsStr) {
+        const parts = coordsStr.split(',').map(part => part.trim());
+        if (parts.length !== 2) return null;
+        
+        const lat = parseFloat(parts[0]);
+        const lng = parseFloat(parts[1]);
+        
+        if (isNaN(lat) || isNaN(lng)) return null;
+        return { lat, lng };
+      }
+      
+      // Abre o modal para adicionar nova empresa
+      function openAddEmpresaModal() {
+        if (!isAdmin) return;
+        
+        editingEmpresaId = null;
+        document.getElementById('modal-title').textContent = 'Adicionar Nova Empresa';
+        document.getElementById('empresa-form').reset();
+        document.getElementById('delete-empresa').style.display = 'none';
+        empresaModal.style.display = 'flex';
+        setTimeout(() => {
+          empresaModal.classList.add('show');
+        }, 10);
+      }
+      
+      // Abre o modal para editar empresa existente
+      function openEditEmpresaModal(id) {
+        if (!isAdmin) return;
+        
+        const empresa = empresas.find(e => e.id === id);
+        if (!empresa) return;
+        
+        editingEmpresaId = id;
+        document.getElementById('modal-title').textContent = 'Editar Empresa';
+        document.getElementById('empresa-id').value = empresa.id;
+        document.getElementById('empresa-nome').value = empresa.nome;
+        document.getElementById('empresa-categoria').value = empresa.categoria || '';
+        document.getElementById('empresa-endereco').value = empresa.endereco;
+        document.getElementById('empresa-coordinates').value = `${empresa.lat}, ${empresa.lng}`;
+        document.getElementById('empresa-site').value = empresa.site || '';
+        document.getElementById('empresa-telefone').value = empresa.telefone || '';
+        document.getElementById('empresa-whatsapp').value = empresa.whatsapp || '';
+        document.getElementById('empresa-horario-inicio').value = empresa.horarioInicio || '';
+        document.getElementById('empresa-horario-fim').value = empresa.horarioFim || '';
+        document.getElementById('delete-empresa').style.display = 'block';
+        empresaModal.style.display = 'flex';
+        setTimeout(() => {
+          empresaModal.classList.add('show');
+        }, 10);
+        
+        map.setView([empresa.lat, empresa.lng], 15);
+        markers[empresa.id].openPopup();
+      }
+      
+      // Salva a empresa (adiciona ou atualiza)
+      async function saveEmpresa() {
+        if (!isAdmin) return;
+        if (!empresaForm.checkValidity()) {
+          empresaForm.reportValidity();
+          return;
+        }
+        
+        const coords = parseCoordinates(document.getElementById('empresa-coordinates').value);
+        if (!coords) {
+          alert('Por favor, insira coordenadas válidas no formato "lat, lng"');
+          return;
+        }
+        
+        const empresaData = {
+          nome: document.getElementById('empresa-nome').value,
+          categoria: document.getElementById('empresa-categoria').value,
+          endereco: document.getElementById('empresa-endereco').value,
+          lat: coords.lat,
+          lng: coords.lng,
+          site: document.getElementById('empresa-site').value || null,
+          telefone: document.getElementById('empresa-telefone').value || null,
+          whatsapp: document.getElementById('empresa-whatsapp').value || null,
+          horarioInicio: document.getElementById('empresa-horario-inicio').value || null,
+          horarioFim: document.getElementById('empresa-horario-fim').value || null,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        try {
+          saveText.style.display = 'none';
+          saveLoading.style.display = 'inline-block';
+          
+          if (editingEmpresaId) {
+            await db.collection("empresas").doc(editingEmpresaId).update(empresaData);
+          } else {
+            empresaData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            await db.collection("empresas").add(empresaData);
+          }
+          
+          closeModal();
+        } catch (error) {
+          console.error("Erro ao salvar empresa:", error);
+          alert("Ocorreu um erro ao salvar a empresa. Tente novamente.");
+        } finally {
+          saveText.style.display = 'inline-block';
+          saveLoading.style.display = 'none';
+        }
+      }
+      
+      // Exclui a empresa atual
+      async function deleteEmpresa() {
+        if (!isAdmin || !editingEmpresaId) return;
+        
+        if (confirm('Tem certeza que deseja excluir esta empresa?')) {
+          try {
+            await db.collection("empresas").doc(editingEmpresaId).delete();
+            closeModal();
+          } catch (error) {
+            console.error("Erro ao excluir empresa:", error);
+            alert("Ocorreu um erro ao excluir a empresa. Tente novamente.");
+          }
+        }
+      }
+      
+      // Fecha o modal
+      function closeModal() {
+        empresaModal.classList.remove('show');
+        loginModal.classList.remove('show');
+        
+        setTimeout(() => {
+          empresaModal.style.display = 'none';
+          loginModal.style.display = 'none';
+          loginError.style.display = 'none';
+          loginForm.reset();
+        }, 300);
+      }
+      
+      // Ativa o modo admin
+      function enableAdminMode() {
+        isAdmin = true;
+        authStatus.textContent = '';
+        authSection.classList.add('admin');
+        logoutBtn.style.display = 'block';
+        loginBtn.style.display = 'none';
+        addEmpresaBtn.style.display = 'flex';
+        filterAndRenderEmpresas();
+      }
+      
+      // Desativa o modo admin
+      function disableAdminMode() {
+        isAdmin = false;
+        authStatus.textContent = '';
+        authSection.classList.remove('admin');
+        logoutBtn.style.display = 'none';
+        loginBtn.style.display = 'block';
+        addEmpresaBtn.style.display = 'none';
+        filterAndRenderEmpresas();
+        auth.signOut();
+      }
+      
+      // Abre o modal de login
+      function openLoginModal() {
+        loginModal.style.display = 'flex';
+        setTimeout(() => {
+          loginModal.classList.add('show');
+        }, 10);
+      }
+      
+      // Verifica o login
+      async function checkLogin() {
+        const email = loginEmail.value;
+        const password = loginPassword.value;
+        
+        if (!email || !password) {
+          loginError.textContent = "Por favor, preencha todos os campos";
+          loginError.style.display = 'block';
+          return;
+        }
+        
+        try {
+          loginText.style.display = 'none';
+          loginLoading.style.display = 'inline-block';
+          
+          await auth.signInWithEmailAndPassword(email, password);
+          
+          enableAdminMode();
+          closeModal();
+        } catch (error) {
+          console.error("Erro no login:", error);
+          loginError.textContent = "Credenciais incorretas. Tente novamente.";
+          loginError.style.display = 'block';
+        } finally {
+          loginText.style.display = 'inline-block';
+          loginLoading.style.display = 'none';
+        }
+      }
+      
+      // Verifica se o usuário está logado ao carregar a página
+      function checkAuthState() {
+        auth.onAuthStateChanged(user => {
+          if (user) {
+            enableAdminMode();
+          }
+        });
+      }
+      
+      // Alterna a visibilidade do sidebar
+      function toggleSidebar() {
+        sidebar.classList.toggle('active');
+        mapContainer.classList.toggle('active');
+      }
+      
+      // Inicializa a aplicação
+      function initApp() {
+        loadTheme();
+        initMap();
+        loadEmpresas();
+        checkAuthState();
+        
+        searchInput.addEventListener('input', filterAndRenderEmpresas);
+        
+        toggleCategoriesBtn.addEventListener('click', function() {
+          categoriesContainer.classList.toggle('show');
+          this.innerHTML = categoriesContainer.classList.contains('show') ? 
+            '<i class="fas fa-tags"></i> Ocultar Categorias' : 
+            '<i class="fas fa-tags"></i> Mostrar Categorias';
+        });
+        
+        categoryButtons.forEach(btn => {
+          btn.addEventListener('click', function() {
+            categoryButtons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            currentCategory = this.dataset.category;
+            filterAndRenderEmpresas();
+          });
+        });
+        
+        loginBtn.addEventListener('click', openLoginModal);
+        logoutBtn.addEventListener('click', disableAdminMode);
+        darkModeToggle.addEventListener('click', toggleDarkMode);
+        
+        addEmpresaBtn.addEventListener('click', openAddEmpresaModal);
+        
+        closeButtons.forEach(btn => {
+          btn.addEventListener('click', closeModal);
+        });
+        
+        saveEmpresaBtn.addEventListener('click', saveEmpresa);
+        deleteEmpresaBtn.addEventListener('click', deleteEmpresa);
+        confirmLoginBtn.addEventListener('click', checkLogin);
+        
+        toggleSidebarBtn.addEventListener('click', toggleSidebar);
+        
+        empresaForm.addEventListener('keypress', function(e) {
+          if (e.key === 'Enter' && empresaModal.style.display === 'flex') {
+            e.preventDefault();
+            saveEmpresa();
+          }
+        });
+        
+        loginForm.addEventListener('keypress', function(e) {
+          if (e.key === 'Enter' && loginModal.style.display === 'flex') {
+            e.preventDefault();
+            checkLogin();
+          }
+        });
+        
+        window.app = {
+          editEmpresa: openEditEmpresaModal
+        };
+      }
+      
+      initApp();
+    });
+  </script>
+</body>
+</html>
